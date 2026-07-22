@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>動物画像 目視確認アシスト</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">ANIMAL IMAGE REVIEW</p>
+      <h1>目視確認アシスト</h1>
+    </div>
+    <div id="progressBlock" class="progress-block hidden">
+      <span id="progressText">0 / 0 件確認済み</span>
+      <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+    </div>
+  </header>
+
+  <main>
+    <section id="setupPanel" class="setup-card">
+      <div>
+        <p class="section-label">解析結果を開く</p>
+        <h2>装置番号_解析日のフォルダを選択</h2>
+        <p class="muted">例：003001_260721。対象の <code>result_*_all.xlsx</code> と画像を自動で探します。</p>
+      </div>
+      <div class="path-row">
+        <input id="folderPath" type="text" placeholder="C:\…\003001_260721" autocomplete="off">
+        <button id="browseButton" class="button secondary" type="button">参照</button>
+        <button id="openButton" class="button primary" type="button">開く</button>
+      </div>
+      <p id="setupError" class="error-message hidden"></p>
+    </section>
+
+    <section id="reviewPanel" class="review-shell hidden">
+      <div class="session-strip">
+        <div><span class="label">対象</span><strong id="workbookName"></strong></div>
+        <div><span class="label">装置番号</span><strong id="deviceNumber"></strong></div>
+        <div><span class="label">解析日</span><strong id="analysisDate"></strong></div>
+        
+        <div class="mode-tabs">
+          <button id="tabSingle" class="mode-tab active" type="button">1枚ずつ確認</button>
+          <button id="tabGrid" class="mode-tab" type="button">動物別一覧</button>
+        </div>
+
+        <button id="changeFolderButton" class="text-button" type="button">フォルダを変更</button>
+      </div>
+
+      <div id="singleMode" class="review-grid">
+        <section class="image-card">
+          <div class="image-toolbar">
+            <div>
+              <span id="positionBadge" class="badge">1 / 1</span>
+              <span id="reviewBadge" class="badge status">未確認</span>
+              <span id="referenceBadge" class="badge reference hidden">参考画像</span>
+            </div>
+            <button id="zoomButton" class="text-button" type="button">画像を拡大</button>
+          </div>
+          <div id="imageStage" class="image-stage">
+            <img id="animalImage" alt="確認対象画像">
+            <div id="imageError" class="image-error hidden">
+              <strong>画像を表示できません</strong>
+              <span id="imageErrorText"></span>
+            </div>
+          </div>
+          <div class="file-details">
+            <strong id="fileName"></strong>
+            <span id="imagePath"></span>
+          </div>
+          <div id="contextPanel" class="context-panel hidden">
+            <div class="context-heading">
+              <div>
+                <strong>時間が近い写真</strong>
+                <span>現在の画像に近い時刻の写真です。判定対象は変わりません。</span>
+              </div>
+              <button id="returnCurrentButton" class="text-button hidden" type="button">判定対象に戻る</button>
+            </div>
+            <div id="contextImages" class="context-images"></div>
+          </div>
+        </section>
+
+        <aside class="input-card">
+          <p class="section-label">AI解析結果</p>
+          <div class="prediction-grid">
+            <div><span>動物名</span><strong id="predictedAnimal"></strong></div>
+            <div><span>数</span><strong id="predictedCount"></strong></div>
+            <div><span>デバイス</span><strong id="deviceValue"></strong></div>
+          </div>
+
+          <div class="divider"></div>
+
+          <p class="section-label">目視結果</p>
+          <label class="field-label" for="animalSelect">動物名</label>
+          <select id="animalSelect"></select>
+          <p class="field-hint">予測と同じ場合、Excelの目視動物名は空欄で保存されます。</p>
+
+          <label class="field-label" for="countInput">数</label>
+          <input id="countInput" type="number" min="0" step="1" inputmode="numeric">
+          <p id="countHint" class="field-hint">0以上の整数を入力してください。</p>
+
+          <p id="saveError" class="error-message hidden"></p>
+          <p id="saveStatus" class="save-status" aria-live="polite"></p>
+
+          <button id="saveNextButton" class="button primary full" type="button">保存して次へ <kbd>Enter</kbd></button>
+
+          <div class="navigation-row">
+            <button id="previousButton" class="button secondary" type="button">← 前へ</button>
+            <button id="nextButton" class="button secondary" type="button">次へ →</button>
+          </div>
+          <button id="nextIncompleteButton" class="button ghost full" type="button">次の未入力へ</button>
+        </aside>
+      </div>
+
+      <div id="gridMode" class="grid-mode hidden">
+        <aside id="animalSidebar" class="animal-sidebar"></aside>
+        <div class="grid-main">
+          <div class="grid-toolbar">
+            <div id="gridInfo" class="grid-info"></div>
+            <div class="grid-actions">
+              <button id="selectAllButton" class="button secondary" type="button">全て選択</button>
+              <button id="deselectAllButton" class="button secondary" type="button">選択解除</button>
+            </div>
+          </div>
+          <p id="gridError" class="error-message hidden"></p>
+          <div id="imageGrid" class="image-grid"></div>
+          <div id="gridPagination" class="grid-pagination"></div>
+        </div>
+        <aside class="input-card">
+          <p class="section-label">一括目視結果</p>
+          <label class="field-label" for="bulkAnimalSelect">動物名</label>
+          <select id="bulkAnimalSelect"></select>
+          <p class="field-hint">予測と同じ場合、Excelの目視動物名は空欄で保存されます。</p>
+
+          <label class="field-label" for="bulkCountInput">数</label>
+          <input id="bulkCountInput" type="number" min="0" step="1" inputmode="numeric" placeholder="(AI予測のまま)">
+          <p id="bulkCountHint" class="field-hint">空欄の場合はAI予測の数が保存されます。</p>
+
+          <p id="gridStatus" class="save-status" aria-live="polite"></p>
+
+          <button id="bulkConfirmButton" class="button primary full" type="button" style="margin-top: 10px;">チェック済みを一括保存</button>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="zoomDialog">
+    <div class="zoom-toolbar">
+      <span id="zoomFileName">拡大画像</span>
+      <div class="zoom-controls">
+        <button id="zoomOutButton" type="button" aria-label="縮小">−</button>
+        <span id="zoomValue">100%</span>
+        <button id="zoomInButton" type="button" aria-label="拡大">＋</button>
+        <button id="zoomResetButton" type="button">全体表示</button>
+        <button id="closeZoomButton" type="button" aria-label="閉じる">×</button>
+      </div>
+    </div>
+    <div id="zoomViewport" class="zoom-viewport">
+      <img id="zoomImage" alt="拡大画像" draggable="false">
+    </div>
+    <p class="zoom-help">マウスホイールで拡大・縮小、拡大後はドラッグして移動できます。ダブルクリックでも拡大できます。</p>
+  </dialog>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
