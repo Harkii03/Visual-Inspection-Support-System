@@ -104,12 +104,14 @@
           <p id="saveStatus" class="save-status" aria-live="polite"></p>
 
           <button id="saveNextButton" class="button primary full" type="button">保存して次へ <kbd>Enter</kbd></button>
+          <button id="holdButton" class="button hold full" type="button" style="margin-top: 6px;">保留にして次へ</button>
 
           <div class="navigation-row">
             <button id="previousButton" class="button secondary" type="button">← 前へ</button>
             <button id="nextButton" class="button secondary" type="button">次へ →</button>
           </div>
           <button id="nextIncompleteButton" class="button ghost full" type="button">次の未入力へ</button>
+          <button id="nextHoldButton" class="button ghost full" type="button" style="margin-top: 8px;">次の保留へ</button>
           <button id="backToGridButton" class="button secondary full hidden" type="button" style="margin-top: 8px;">一覧に戻る</button>
         </aside>
       </div>
@@ -120,6 +122,8 @@
           <div class="grid-toolbar">
             <div id="gridInfo" class="grid-info"></div>
             <div class="grid-actions">
+              <button id="selectAllButton" class="button secondary" type="button">全て選択</button>
+              <button id="deselectAllButton" class="button secondary" type="button">選択解除</button>
               <label style="font-size: 11px; margin-left: 10px;">縦:</label>
               <select id="gridRows" style="padding: 2px 4px; border-radius: 4px; border: 1px solid var(--line);">
                 <option value="2">2</option>
@@ -137,8 +141,6 @@
                 <option value="7">7</option>
                 <option value="8">8</option>
               </select>
-              <button id="selectAllButton" class="button secondary" type="button" style="margin-left: 10px;">全て選択</button>
-              <button id="deselectAllButton" class="button secondary" type="button">選択解除</button>
             </div>
           </div>
           <p id="gridError" class="error-message hidden"></p>
@@ -158,6 +160,7 @@
           <p id="gridStatus" class="save-status" aria-live="polite"></p>
 
           <button id="bulkConfirmButton" class="button primary full" type="button" style="margin-top: 10px;">チェック済みを一括保存</button>
+          <button id="bulkHoldButton" class="button hold full" type="button" style="margin-top: 6px;">チェック済みを保留にする</button>
         </aside>
       </div>
     </section>
