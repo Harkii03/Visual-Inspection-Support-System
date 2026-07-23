@@ -43,7 +43,8 @@ function updateSummary(payload) {
   el("workbookName").textContent = payload.workbook;
   el("deviceNumber").textContent = payload.deviceNumber;
   el("analysisDate").textContent = payload.analysisDate;
-  el("progressText").textContent = `${payload.completed.toLocaleString()} / ${payload.total.toLocaleString()} 件確認済み`;
+  const pct = payload.total ? Math.floor((payload.completed / payload.total) * 100) : 0;
+  el("progressText").textContent = `${payload.completed.toLocaleString()} / ${payload.total.toLocaleString()} 件確認済み (${pct}%)`;
   el("progressBar").style.width = payload.total ? `${payload.completed / payload.total * 100}%` : "0%";
 }
 
@@ -376,6 +377,10 @@ document.addEventListener("keydown", (event) => {
     moveTo(state.currentIndex + 1);
   } else if (event.key === "Escape" && el("zoomDialog").open) {
     el("zoomDialog").close();
+  } else if (event.key === "Escape" && !el("gridMode").classList.contains("hidden")) {
+    gridState.checkedIndices.clear();
+    document.querySelectorAll(".grid-card").forEach(c => c.classList.remove("checked"));
+    updateBulkButtonLabel();
   } else if (el("zoomDialog").open && (event.key === "+" || event.key === "=")) {
     changeZoom(0.5);
   } else if (el("zoomDialog").open && event.key === "-") {
@@ -466,12 +471,27 @@ function highlightSidebarItem(animalName) {
   });
 }
 
+el("gridRows").addEventListener("change", () => {
+  el("imageGrid").style.setProperty('--grid-rows', el("gridRows").value);
+  if (gridState.currentAnimal) loadGrid(gridState.currentAnimal, 0);
+});
+el("gridCols").addEventListener("change", () => {
+  el("imageGrid").style.setProperty('--grid-cols', el("gridCols").value);
+  if (gridState.currentAnimal) loadGrid(gridState.currentAnimal, 0);
+});
+el("backToGridButton").addEventListener("click", () => {
+  switchMode("grid");
+  if (gridState.currentAnimal) loadGrid(gridState.currentAnimal, gridState.currentPage);
+  el("backToGridButton").classList.add("hidden");
+});
+
 async function loadGrid(animalName, page) {
   if (gridState.loading) return;
   gridState.loading = true;
   showError(el("gridError"), "");
   try {
-    const payload = await api(`/api/grid/${encodeURIComponent(animalName)}?page=${page}`);
+    const perPage = parseInt(el("gridRows").value) * parseInt(el("gridCols").value);
+    const payload = await api(`/api/grid/${encodeURIComponent(animalName)}?page=${page}&per_page=${perPage}`);
     updateSummary(payload);
     gridState.currentAnimal = payload.animal;
     gridState.currentPage = payload.page;
@@ -539,14 +559,14 @@ function renderImageGrid(rows) {
     // Info bar
     const info = document.createElement("div");
     info.className = "grid-card-info";
-    const filename = document.createElement("span");
-    filename.className = "grid-card-filename";
-    filename.textContent = row.filename;
-    filename.title = row.filename;
-    const count = document.createElement("span");
-    count.className = "grid-card-count";
-    count.textContent = `数: ${row.predictedCount ?? "?"}`;
-    info.append(filename, count);
+    const animalSpan = document.createElement("span");
+    animalSpan.className = "grid-card-animal";
+    animalSpan.textContent = row.predictedAnimal || "（空欄）";
+    animalSpan.title = row.predictedAnimal || "（空欄）";
+    const countSpan = document.createElement("span");
+    countSpan.className = "grid-card-count";
+    countSpan.textContent = `数: ${row.predictedCount ?? "?"}`;
+    info.append(animalSpan, countSpan);
     card.append(info);
 
     // Single click = toggle check
@@ -559,6 +579,7 @@ function renderImageGrid(rows) {
     // Double click = zoom
     card.addEventListener("dblclick", () => {
       switchMode("single");
+      el("backToGridButton").classList.remove("hidden");
       moveTo(row.index);
     });
 
@@ -681,6 +702,11 @@ el("imageGrid").addEventListener("pointerdown", (e) => {
   gridState.dragStartX = e.pageX;
   gridState.dragStartY = e.pageY;
   
+  gridState.initialCheckedState.clear();
+  document.querySelectorAll(".grid-card").forEach(card => {
+    gridState.initialCheckedState.set(parseInt(card.dataset.index), gridState.checkedIndices.has(parseInt(card.dataset.index)));
+  });
+  
   if (!gridState.selectionBox) {
     gridState.selectionBox = document.createElement("div");
     gridState.selectionBox.className = "selection-box";
@@ -729,11 +755,14 @@ document.addEventListener("pointermove", (e) => {
     );
     
     const index = parseInt(card.dataset.index);
+    const initialState = gridState.initialCheckedState.get(index) || false;
     
     if (isIntersecting) {
       card.classList.add("selecting");
+      card.classList.toggle("checked", !initialState);
     } else {
       card.classList.remove("selecting");
+      card.classList.toggle("checked", initialState);
     }
   });
 });
@@ -743,12 +772,11 @@ document.addEventListener("pointerup", () => {
     gridState.isSelecting = false;
     if (gridState.selectionBox) gridState.selectionBox.classList.add("hidden");
     
-    // Apply checked state to all selected cards
-    document.querySelectorAll(".grid-card.selecting").forEach(card => {
-      const index = parseInt(card.dataset.index);
-      if (!gridState.checkedIndices.has(index)) {
-        gridState.checkedIndices.add(index);
-        card.classList.add("checked");
+    // Apply checked state to all cards
+    gridState.checkedIndices.clear();
+    document.querySelectorAll(".grid-card").forEach(card => {
+      if (card.classList.contains("checked")) {
+        gridState.checkedIndices.add(parseInt(card.dataset.index));
       }
       card.classList.remove("selecting");
     });

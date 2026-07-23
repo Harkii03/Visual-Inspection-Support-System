@@ -368,20 +368,23 @@ dialog::backdrop { background: rgba(5, 10, 7, .82); }
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .grid-actions .button {
   min-height: 36px;
   padding: 6px 14px;
   font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* ── Image Grid (4x3 responsive) ── */
 .image-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--grid-cols, 4), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--grid-rows, 3), minmax(0, 1fr));
   gap: 12px;
   overflow: hidden;
   padding: 4px 0;
@@ -480,15 +483,25 @@ dialog::backdrop { background: rgba(5, 10, 7, .82); }
 }
 
 .grid-card-info {
-  display: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  background: white;
+  border-top: 1px solid var(--line);
 }
 
-.grid-card-info .grid-card-filename {
-  display: none;
+.grid-card-info .grid-card-animal {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .grid-card-info .grid-card-count {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
 }

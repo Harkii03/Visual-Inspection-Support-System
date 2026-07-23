@@ -177,6 +177,8 @@ def get_animals():
             book = _require_session()
             groups = book.rows_by_animal()
             animal_list = []
+            all_indices = []
+            all_reviewed_count = 0
             for animal_name, indices in groups.items():
                 reviewed_count = sum(
                     1 for idx in indices
@@ -187,6 +189,14 @@ def get_animals():
                     "total": len(indices),
                     "reviewed": reviewed_count,
                 })
+                all_indices.extend(indices)
+                all_reviewed_count += reviewed_count
+            
+            animal_list.insert(0, {
+                "name": "すべて",
+                "total": len(all_indices),
+                "reviewed": all_reviewed_count,
+            })
             return jsonify({
                 "ok": True,
                 **_summary(book),
@@ -200,11 +210,17 @@ def get_animals():
 def get_grid(animal_name: str):
     try:
         page = request.args.get("page", 0, type=int)
-        per_page = 12
+        per_page = request.args.get("per_page", 12, type=int)
         with session_lock:
             book = _require_session()
             groups = book.rows_by_animal()
-            indices = groups.get(animal_name, [])
+            if animal_name == "すべて":
+                indices = []
+                for idxs in groups.values():
+                    indices.extend(idxs)
+                indices.sort()
+            else:
+                indices = groups.get(animal_name, [])
             total_pages = max(1, -(-len(indices) // per_page))
             page = max(0, min(page, total_pages - 1))
             page_indices = indices[page * per_page: (page + 1) * per_page]
