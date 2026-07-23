@@ -77,8 +77,13 @@ def device_folder(value: Any) -> str:
     raise WorkbookFormatError(f"デバイスを server/device に変換できません: {_text(value) or '（空欄）'}")
 
 
-def is_reviewed(manual_animal: Any, manual_count: Any) -> bool:
-    return _text(manual_animal) == "いない" or manual_count not in (None, "")
+def get_status(manual_animal: Any, manual_count: Any) -> str:
+    text_animal = _text(manual_animal)
+    if text_animal == "保留":
+        return "hold"
+    if text_animal == "いない" or manual_count not in (None, ""):
+        return "reviewed"
+    return "pending"
 
 
 def sequence_key_and_frame(filename: Any) -> tuple[str, int] | None:
@@ -103,6 +108,8 @@ def capture_sort_key(filename: Any) -> tuple[datetime, int] | None:
 
 
 def normalized_manual_values(predicted_animal: str, selected_animal: str, count: Any) -> tuple[str | None, int | None]:
+    if selected_animal == "保留":
+        return "保留", None
     if selected_animal not in ANIMAL_OPTIONS:
         raise ValueError("動物名は候補から選択してください。")
     if selected_animal == "いない":
@@ -365,9 +372,9 @@ class AnimalWorkbook:
             image_path = None
             path_error = str(exc)
 
-        reviewed = is_reviewed(manual_animal, manual_count)
-        selected_animal = manual_animal or predicted_animal
-        displayed_count = "" if selected_animal == "いない" else (
+        status = get_status(manual_animal, manual_count)
+        ui_selected_animal = predicted_animal if status == "hold" else (manual_animal or predicted_animal)
+        displayed_count = "" if ui_selected_animal in ("いない", "保留") else (
             manual_count if manual_count not in (None, "") else predicted_count
         )
         ai_animal = _text(self.sheet.cell(excel_row, self.columns.ai_animal).value)
@@ -379,9 +386,9 @@ class AnimalWorkbook:
             "predictedAnimal": predicted_animal,
             "predictedCount": predicted_count,
             "device": _text(self.sheet.cell(excel_row, self.columns.device).value),
-            "selectedAnimal": selected_animal,
+            "selectedAnimal": ui_selected_animal,
             "manualCount": displayed_count,
-            "reviewed": reviewed,
+            "status": status,
             "imageExists": bool(image_path and image_path.is_file()),
             "imagePath": str(image_path) if image_path else "",
             "pathError": path_error,
@@ -392,22 +399,23 @@ class AnimalWorkbook:
 
     def completed_count(self) -> int:
         return sum(
-            is_reviewed(
+            1 for row in self.rows
+            if get_status(
                 self.sheet.cell(row, self.columns.manual_animal).value,
                 self.sheet.cell(row, self.columns.manual_count).value,
-            )
-            for row in self.rows
+            ) == "reviewed"
         )
 
-    def next_unreviewed(self, current_index: int) -> int | None:
+    def next_with_status(self, current_index: int, target_statuses: list[str]) -> int | None:
         total = len(self.rows)
         for offset in range(1, total + 1):
             index = (current_index + offset) % total
             row = self.rows[index]
-            if not is_reviewed(
+            status = get_status(
                 self.sheet.cell(row, self.columns.manual_animal).value,
                 self.sheet.cell(row, self.columns.manual_count).value,
-            ):
+            )
+            if status in target_statuses:
                 return index
         return None
 
@@ -436,13 +444,13 @@ class AnimalWorkbook:
         except WorkbookFormatError as exc:
             image_path = None
             path_error = str(exc)
-        reviewed = is_reviewed(manual_animal, manual_count)
+        status = get_status(manual_animal, manual_count)
         return {
             "index": index,
             "filename": _text(self.sheet.cell(excel_row, self.columns.filename).value),
             "predictedAnimal": predicted_animal,
             "predictedCount": predicted_count,
-            "reviewed": reviewed,
+            "status": status,
             "imageExists": bool(image_path and image_path.is_file()),
             "pathError": path_error,
         }

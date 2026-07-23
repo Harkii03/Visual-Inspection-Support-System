@@ -230,7 +230,18 @@ def next_unreviewed(index_value: int):
     try:
         with session_lock:
             book = _require_session()
-            next_index = book.next_unreviewed(index_value)
+            next_index = book.next_with_status(index_value, ["pending"])
+            return jsonify({"ok": True, "index": next_index, **_summary(book)})
+    except (OSError, WorkbookFormatError, ValueError) as exc:
+        return _error(str(exc))
+
+
+@app.get("/api/next-hold/<int:index_value>")
+def next_hold(index_value: int):
+    try:
+        with session_lock:
+            book = _require_session()
+            next_index = book.next_with_status(index_value, ["hold"])
             return jsonify({"ok": True, "index": next_index, **_summary(book)})
     except (OSError, WorkbookFormatError, ValueError) as exc:
         return _error(str(exc))
@@ -248,7 +259,7 @@ def get_animals():
             for animal_name, indices in groups.items():
                 reviewed_count = sum(
                     1 for idx in indices
-                    if book.grid_row_data(idx)["reviewed"]
+                    if book.grid_row_data(idx)["status"] == "reviewed"
                 )
                 animal_list.append({
                     "name": animal_name,
@@ -333,6 +344,38 @@ def confirm_predictions():
                 confirmed_count = book.save_review_bulk(indices, animal, count)
             else:
                 confirmed_count = book.confirm_predictions_bulk(indices)
+            return jsonify({"ok": True, "confirmed": confirmed_count, **_summary(book)})
+    except PermissionError as exc:
+        winerror = getattr(exc, "winerror", None)
+        if winerror in (5, 32):
+            return _error(
+                "対象ExcelがMicrosoft Excelなどで開かれているため保存できません。"
+                "対象Excelを閉じてから、もう一度保存してください。"
+            )
+        return _error(f"保存先へのアクセスが拒否されました: {exc}")
+    except OSError as exc:
+        winerror = getattr(exc, "winerror", None)
+        if winerror in (5, 32):
+            return _error(
+                "対象Excelまたは保存先フォルダが他のアプリで使用されています。"
+                "Excelとエクスプローラーのプレビューを閉じてから、もう一度保存してください。"
+            )
+        return _error(f"保存できませんでした: {exc}")
+    except (TypeError, ValueError, WorkbookFormatError) as exc:
+        return _error(f"保存できませんでした: {exc}")
+
+
+@app.post("/api/hold")
+def hold_images():
+    payload = request.get_json(silent=True) or {}
+    try:
+        indices = payload.get("indices", [])
+        if not isinstance(indices, list) or not indices:
+            return _error("保留する画像を選択してください。")
+            
+        with session_lock:
+            book = _require_session()
+            confirmed_count = book.save_review_bulk(indices, "保留", "")
             return jsonify({"ok": True, "confirmed": confirmed_count, **_summary(book)})
     except PermissionError as exc:
         winerror = getattr(exc, "winerror", None)

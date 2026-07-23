@@ -58,8 +58,8 @@ function showError(target, message) {
 
 function setBusy(busy) {
   state.loading = busy;
-  ["browseButton", "openButton", "saveNextButton", "previousButton", "nextButton", "nextIncompleteButton", "aiInferButton"]
-    .forEach((id) => { el(id).disabled = busy; });
+  ["browseButton", "openButton", "saveNextButton", "holdButton", "previousButton", "nextButton", "nextIncompleteButton", "nextHoldButton", "bulkConfirmButton", "bulkHoldButton", "aiInferButton"]
+    .forEach((id) => { if (el(id)) el(id).disabled = busy; });
 }
 
 function updateSummary(payload) {
@@ -78,8 +78,9 @@ function renderRow(row, options = {}) {
   state.currentRow = row;
   state.dirty = false;
   el("positionBadge").textContent = `${(row.index + 1).toLocaleString()} / ${state.total.toLocaleString()}`;
-  el("reviewBadge").textContent = row.reviewed ? "確認済み" : "未確認";
-  el("reviewBadge").className = `badge status ${row.reviewed ? "reviewed" : "pending"}`;
+  const statusMap = { reviewed: "確認済み", hold: "保留", pending: "未確認" };
+  el("reviewBadge").textContent = statusMap[row.status] || "未確認";
+  el("reviewBadge").className = `badge status ${row.status || "pending"}`;
   el("fileName").textContent = row.filename;
   el("imagePath").textContent = row.imagePath || row.pathError || "画像パスを生成できません";
   el("predictedAnimal").textContent = row.predictedAnimal || "（空欄）";
@@ -436,6 +437,61 @@ async function nextIncomplete() {
   }
 }
 
+async function holdCurrent(advance = false) {
+  if (state.loading || state.total === 0) return false;
+  setBusy(true);
+  showError(el("saveError"), "");
+  el("saveStatus").textContent = "保存中…";
+  try {
+    const payload = await api("/api/hold", {
+      method: "POST",
+      body: JSON.stringify({
+        indices: [state.currentIndex]
+      }),
+    });
+    state.dirty = false;
+    updateSummary(payload);
+    el("saveStatus").textContent = "保留として保存しました。";
+    if (advance && state.currentIndex < state.total - 1) {
+      const nextIndex = state.currentIndex + 1;
+      setBusy(false);
+      await loadRow(nextIndex);
+    } else {
+      setBusy(false);
+      await loadRow(state.currentIndex);
+    }
+    return true;
+  } catch (error) {
+    el("saveStatus").textContent = "";
+    showError(el("saveError"), error.message);
+    return false;
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function nextHold() {
+  if (state.dirty) {
+    const saved = await saveCurrent(false);
+    if (!saved) return;
+  }
+  setBusy(true);
+  try {
+    const payload = await api(`/api/next-hold/${state.currentIndex}`);
+    updateSummary(payload);
+    if (payload.index === null) {
+      el("saveStatus").textContent = "保留の画像はありません。";
+    } else {
+      setBusy(false);
+      await loadRow(payload.index);
+    }
+  } catch (error) {
+    showError(el("saveError"), error.message);
+  } finally {
+    setBusy(false);
+  }
+}
+
 el("browseButton").addEventListener("click", chooseFolder);
 el("openButton").addEventListener("click", openFolder);
 el("folderPath").addEventListener("keydown", (event) => { if (event.key === "Enter") openFolder(); });
@@ -464,6 +520,7 @@ el("saveNextButton").addEventListener("click", () => saveCurrent(true));
 el("previousButton").addEventListener("click", () => stepImage(-1));
 el("nextButton").addEventListener("click", () => stepImage(1));
 el("nextIncompleteButton").addEventListener("click", nextIncomplete);
+el("nextHoldButton").addEventListener("click", nextHold);
 el("returnCurrentButton").addEventListener("click", showCurrentImage);
 el("zoomButton").addEventListener("click", () => {
   if (!el("zoomImage").src) return;
@@ -667,7 +724,9 @@ function renderImageGrid(rows) {
 
   rows.forEach((row) => {
     const card = document.createElement("div");
-    card.className = `grid-card${row.reviewed ? " already-reviewed" : ""}`;
+    const isReviewed = row.status === "reviewed";
+    const isHold = row.status === "hold";
+    card.className = `grid-card${isReviewed ? " already-reviewed" : ""}${isHold ? " on-hold" : ""}`;
     card.dataset.index = row.index;
 
     // Image
@@ -700,11 +759,16 @@ function renderImageGrid(rows) {
     checkbox.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>';
     card.append(checkbox);
 
-    // Reviewed badge
-    if (row.reviewed) {
+    // Badge
+    if (isReviewed) {
       const badge = document.createElement("span");
       badge.className = "grid-card-badge reviewed-badge";
       badge.textContent = "確認済み";
+      card.append(badge);
+    } else if (isHold) {
+      const badge = document.createElement("span");
+      badge.className = "grid-card-badge hold-badge";
+      badge.textContent = "保留";
       card.append(badge);
     }
 
@@ -830,7 +894,29 @@ el("bulkConfirmButton").addEventListener("click", async () => {
     updateSummary(payload);
     el("gridStatus").textContent = `${payload.confirmed}件をExcelへ保存しました。`;
     gridState.checkedIndices.clear();
-    // Reload both sidebar counts and grid
+    await loadAnimalSidebar();
+  } catch (error) {
+    el("gridStatus").textContent = "";
+    showError(el("gridError"), error.message);
+  }
+});
+
+el("bulkHoldButton").addEventListener("click", async () => {
+  if (gridState.checkedIndices.size === 0) {
+    showError(el("gridError"), "保留にする画像を選択してください。");
+    return;
+  }
+  showError(el("gridError"), "");
+  el("gridStatus").textContent = "保存中…";
+
+  try {
+    const payload = await api("/api/hold", {
+      method: "POST",
+      body: JSON.stringify({ indices: [...gridState.checkedIndices] }),
+    });
+    updateSummary(payload);
+    el("gridStatus").textContent = `${payload.confirmed}件を保留にしました。`;
+    gridState.checkedIndices.clear();
     await loadAnimalSidebar();
   } catch (error) {
     el("gridStatus").textContent = "";
