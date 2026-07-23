@@ -430,9 +430,17 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     saveCurrent(true);
   } else if (event.key === "ArrowLeft" && !["INPUT", "SELECT"].includes(event.target.tagName)) {
-    moveTo(state.currentIndex - 1);
+    if (!el("gridMode").classList.contains("hidden") && gridState.currentAnimal) {
+      if (gridState.currentPage > 0) loadGrid(gridState.currentAnimal, gridState.currentPage - 1);
+    } else {
+      moveTo(state.currentIndex - 1);
+    }
   } else if (event.key === "ArrowRight" && !["INPUT", "SELECT"].includes(event.target.tagName)) {
-    moveTo(state.currentIndex + 1);
+    if (!el("gridMode").classList.contains("hidden") && gridState.currentAnimal) {
+      if (gridState.currentPage < gridState.totalPages - 1) loadGrid(gridState.currentAnimal, gridState.currentPage + 1);
+    } else {
+      moveTo(state.currentIndex + 1);
+    }
   } else if (event.key === "Escape" && el("zoomDialog").open) {
     el("zoomDialog").close();
   } else if (event.key === "Escape" && !el("gridMode").classList.contains("hidden")) {
