@@ -54,6 +54,7 @@
               <span id="positionBadge" class="badge">1 / 1</span>
               <span id="reviewBadge" class="badge status">未確認</span>
               <span id="referenceBadge" class="badge reference hidden">参考画像</span>
+              <span id="filterBadge" class="badge filter hidden"></span>
             </div>
             <button id="zoomButton" class="text-button" type="button">画像を拡大</button>
           </div>
@@ -87,6 +88,18 @@
             <div><span>数</span><strong id="predictedCount"></strong></div>
             <div><span>デバイス</span><strong id="deviceValue"></strong></div>
           </div>
+
+          <div class="divider"></div>
+
+          <p class="section-label">AI再判定（実験的・汎用CLIPモデル）</p>
+          <div class="prediction-grid">
+            <div><span>AI再判定</span><strong id="aiAnimalValue">未実行</strong></div>
+            <div><span>確信度</span><strong id="aiConfidenceValue"></strong></div>
+          </div>
+          <button id="aiInferButton" class="button secondary full" type="button">この画像をAIで再判定</button>
+          <button id="aiInferBatchButton" class="button ghost full" type="button">未判定をまとめてAIで推論</button>
+          <p id="aiInferStatus" class="save-status" aria-live="polite"></p>
+          <p id="aiInferError" class="error-message hidden"></p>
 
           <div class="divider"></div>
 

@@ -12,9 +12,34 @@ const state = {
   zoomDragging: false,
   zoomPointerX: 0,
   zoomPointerY: 0,
+  animalFilter: null,
+  filterIndices: [],
+  filterPos: 0,
+  aiBatchRunning: false,
 };
 
 const el = (id) => document.getElementById(id);
+
+const ANIMAL_SHORTCUTS = {
+  b: "boar（イノシシ）",
+  k: "bear（クマ）",
+  t: "racoondog（タヌキ）",
+  h: "man（ヒト）",
+  c: "car（クルマ）",
+  u: "maskedmusang（ハクビシン）",
+  i: "dog（イヌ）",
+  n: "cat（ネコ）",
+  s: "deer（シカ）",
+  f: "fox（キツネ）",
+  w: "serow（カモシカ）",
+  r: "rabbit（ウサギ）",
+  o: "craw（カラス）",
+  m: "monkey（サル）",
+  g: "badger（アナグマ）",
+  v: "racoon（アライグマ）",
+  q: "?",
+  x: "いない",
+};
 
 async function api(url, options = {}) {
   const response = await fetch(url, {
@@ -33,7 +58,7 @@ function showError(target, message) {
 
 function setBusy(busy) {
   state.loading = busy;
-  ["browseButton", "openButton", "saveNextButton", "holdButton", "previousButton", "nextButton", "nextIncompleteButton", "nextHoldButton", "bulkConfirmButton", "bulkHoldButton"]
+  ["browseButton", "openButton", "saveNextButton", "holdButton", "previousButton", "nextButton", "nextIncompleteButton", "nextHoldButton", "bulkConfirmButton", "bulkHoldButton", "aiInferButton"]
     .forEach((id) => { if (el(id)) el(id).disabled = busy; });
 }
 
@@ -61,10 +86,13 @@ function renderRow(row, options = {}) {
   el("predictedAnimal").textContent = row.predictedAnimal || "（空欄）";
   el("predictedCount").textContent = row.predictedCount ?? "（空欄）";
   el("deviceValue").textContent = row.device || "（空欄）";
+  el("aiAnimalValue").textContent = row.aiAnimal || "未実行";
+  el("aiConfidenceValue").textContent = row.aiConfidence != null ? `${Math.round(row.aiConfidence * 100)}%` : "";
   el("animalSelect").value = row.selectedAnimal;
   el("countInput").value = row.manualCount ?? "";
   updateCountState();
   showError(el("saveError"), "");
+  showError(el("aiInferError"), "");
   if (!options.keepStatus) el("saveStatus").textContent = "";
 
   renderContextImages(row);
@@ -208,6 +236,7 @@ async function openFolder() {
     payload.animals.forEach((animal) => bulkSelect.add(new Option(animal, animal)));
     updateSummary(payload);
     renderRow(payload.row);
+    clearAnimalFilter();
     el("setupPanel").classList.add("hidden");
     el("reviewPanel").classList.remove("hidden");
     el("progressBlock").classList.remove("hidden");
@@ -226,10 +255,121 @@ async function loadRow(index) {
     const payload = await api(`/api/row/${bounded}`);
     updateSummary(payload);
     renderRow(payload.row);
+    if (state.animalFilter) {
+      const pos = state.filterIndices.indexOf(bounded);
+      if (pos === -1) {
+        clearAnimalFilter();
+      } else {
+        state.filterPos = pos;
+      }
+    }
   } catch (error) {
     showError(el("saveError"), error.message);
   } finally {
     setBusy(false);
+  }
+}
+
+async function stepImage(delta) {
+  if (state.animalFilter) {
+    const newPos = state.filterPos + delta;
+    if (newPos < 0 || newPos >= state.filterIndices.length) return;
+    await moveTo(state.filterIndices[newPos]);
+  } else {
+    await moveTo(state.currentIndex + delta);
+  }
+}
+
+async function activateAnimalFilter(animalName) {
+  if (state.loading) return;
+  if (state.dirty) {
+    const saved = await saveCurrent(false);
+    if (!saved) return;
+  }
+  setBusy(true);
+  try {
+    const payload = await api(`/api/animal-indices/${encodeURIComponent(animalName)}`);
+    if (payload.indices.length === 0) {
+      setBusy(false);
+      showError(el("saveError"), `${animalName} の画像はありません。`);
+      return;
+    }
+    state.animalFilter = animalName;
+    state.filterIndices = payload.indices;
+    state.filterPos = 0;
+    updateFilterBadge();
+    setBusy(false);
+    await loadRow(state.filterIndices[0]);
+  } catch (error) {
+    setBusy(false);
+    showError(el("saveError"), error.message);
+  }
+}
+
+function clearAnimalFilter() {
+  state.animalFilter = null;
+  state.filterIndices = [];
+  state.filterPos = 0;
+  updateFilterBadge();
+}
+
+function updateFilterBadge() {
+  const badge = el("filterBadge");
+  if (state.animalFilter) {
+    badge.textContent = `絞り込み中: ${state.animalFilter}（Escで解除）`;
+    badge.classList.remove("hidden");
+  } else {
+    badge.classList.add("hidden");
+  }
+}
+
+async function runAiInferSingle() {
+  if (state.loading || state.total === 0) return;
+  setBusy(true);
+  showError(el("aiInferError"), "");
+  el("aiInferStatus").textContent = "AI推論中…";
+  try {
+    const payload = await api(`/api/ai-infer/${state.currentIndex}`, { method: "POST" });
+    renderRow(payload.row, { keepStatus: true });
+    el("aiInferStatus").textContent = "AI推論が完了しました。";
+  } catch (error) {
+    el("aiInferStatus").textContent = "";
+    showError(el("aiInferError"), error.message);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function runAiInferBatch() {
+  if (state.aiBatchRunning) {
+    state.aiBatchRunning = false;
+    return;
+  }
+  state.aiBatchRunning = true;
+  el("aiInferBatchButton").textContent = "停止";
+  showError(el("aiInferError"), "");
+  try {
+    while (state.aiBatchRunning) {
+      const payload = await api("/api/ai-infer-batch", {
+        method: "POST",
+        body: JSON.stringify({ limit: 20 }),
+      });
+      el("aiInferStatus").textContent = `AI一括推論を実行中… 残り ${payload.remaining.toLocaleString()} 件`;
+      if (payload.processed.includes(state.currentIndex)) {
+        await loadRow(state.currentIndex);
+      }
+      if (payload.processed.length === 0 || payload.remaining === 0) {
+        el("aiInferStatus").textContent = payload.remaining === 0
+          ? "すべての画像のAI推論が完了しました。"
+          : "対象の画像がありません。";
+        break;
+      }
+    }
+  } catch (error) {
+    showError(el("aiInferError"), error.message);
+  } finally {
+    state.aiBatchRunning = false;
+    el("aiInferBatchButton").textContent = "未判定をまとめてAIで推論";
   }
 }
 
@@ -374,10 +514,11 @@ function updateBulkCountState() {
 }
 el("bulkAnimalSelect").addEventListener("change", updateBulkCountState);
 
+el("aiInferButton").addEventListener("click", runAiInferSingle);
+el("aiInferBatchButton").addEventListener("click", runAiInferBatch);
 el("saveNextButton").addEventListener("click", () => saveCurrent(true));
-el("holdButton").addEventListener("click", () => holdCurrent(true));
-el("previousButton").addEventListener("click", () => moveTo(state.currentIndex - 1));
-el("nextButton").addEventListener("click", () => moveTo(state.currentIndex + 1));
+el("previousButton").addEventListener("click", () => stepImage(-1));
+el("nextButton").addEventListener("click", () => stepImage(1));
 el("nextIncompleteButton").addEventListener("click", nextIncomplete);
 el("nextHoldButton").addEventListener("click", nextHold);
 el("returnCurrentButton").addEventListener("click", showCurrentImage);
@@ -429,12 +570,22 @@ document.addEventListener("keydown", (event) => {
   } else if (event.key === "Enter" && event.target.tagName !== "BUTTON") {
     event.preventDefault();
     saveCurrent(true);
-  } else if (event.key === "ArrowLeft" && !["INPUT", "SELECT"].includes(event.target.tagName)) {
-    moveTo(state.currentIndex - 1);
-  } else if (event.key === "ArrowRight" && !["INPUT", "SELECT"].includes(event.target.tagName)) {
-    moveTo(state.currentIndex + 1);
+  } else if (["ArrowLeft", "a", "A"].includes(event.key) && !["INPUT", "SELECT"].includes(event.target.tagName)) {
+    stepImage(-1);
+  } else if (["ArrowRight", "d", "D"].includes(event.key) && !["INPUT", "SELECT"].includes(event.target.tagName)) {
+    stepImage(1);
+  } else if (
+    !el("singleMode").classList.contains("hidden") &&
+    !el("zoomDialog").open &&
+    !event.ctrlKey && !event.metaKey && !event.altKey &&
+    !["INPUT", "SELECT"].includes(event.target.tagName) &&
+    ANIMAL_SHORTCUTS[event.key.toLowerCase()]
+  ) {
+    activateAnimalFilter(ANIMAL_SHORTCUTS[event.key.toLowerCase()]);
   } else if (event.key === "Escape" && el("zoomDialog").open) {
     el("zoomDialog").close();
+  } else if (event.key === "Escape" && state.animalFilter) {
+    clearAnimalFilter();
   } else if (event.key === "Escape" && !el("gridMode").classList.contains("hidden")) {
     gridState.checkedIndices.clear();
     document.querySelectorAll(".grid-card").forEach(c => c.classList.remove("checked"));
