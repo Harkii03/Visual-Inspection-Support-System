@@ -104,6 +104,8 @@ input:disabled { color: #7a857e; background: #edf0ed; }
 .button.primary:hover { background: var(--green-dark); }
 .button.secondary { border-color: #bfcbc2; color: #294435; background: white; }
 .button.ghost { color: var(--green); background: var(--green-soft); }
+.button.hold { color: #c25f00; background: #fff3e0; border-color: #ffcc80; }
+.button.hold:hover { background: #ffe0b2; }
 .button.full { width: 100%; }
 
 .review-shell { width: 100%; height: 100%; margin: 0 auto; display: flex; flex-direction: column; min-height: 0; }
@@ -140,6 +142,7 @@ input:disabled { color: #7a857e; background: #edf0ed; }
 .badge { display: inline-block; padding: 5px 9px; border-radius: 999px; color: #365043; background: #edf1ee; font-size: 12px; font-weight: 800; }
 .badge.status.reviewed { color: var(--green-dark); background: var(--green-soft); }
 .badge.status.pending { color: var(--amber); background: var(--amber-soft); }
+.badge.status.hold { color: #c25f00; background: #fff3e0; }
 .badge.reference { color: #174b77; background: #e2f0fb; }
 
 .image-stage {
@@ -425,6 +428,11 @@ dialog::backdrop { background: rgba(5, 10, 7, .82); }
   opacity: .7;
 }
 
+.grid-card.on-hold {
+  border-color: #ff9800;
+  opacity: .85;
+}
+
 .grid-card-image {
   width: 100%;
   flex: 1;
@@ -520,6 +528,11 @@ dialog::backdrop { background: rgba(5, 10, 7, .82); }
 .grid-card-badge.reviewed-badge {
   color: var(--green-dark);
   background: rgba(225, 239, 230, .92);
+}
+
+.grid-card-badge.hold-badge {
+  color: #c25f00;
+  background: rgba(255, 243, 224, .92);
 }
 
 .grid-card-checkbox {
