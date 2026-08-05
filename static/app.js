@@ -123,6 +123,33 @@ function fitImageFrame() {
   frame.style.height = `${Math.round(image.naturalHeight * scale)}px`;
 }
 
+const REVIEW_LAYOUT_MIN_IMAGE_WIDTH = 420;
+const REVIEW_LAYOUT_MIN_INPUT_WIDTH = 350;
+
+function fitReviewLayout() {
+  const shell = el("singleMode");
+  const stage = el("imageStage");
+  const image = el("animalImage");
+  if (shell.classList.contains("hidden")) return;
+  if (!image.naturalWidth || !image.naturalHeight) {
+    shell.style.gridTemplateColumns = "";
+    fitImageFrame();
+    return;
+  }
+  const stageH = stage.clientHeight;
+  const totalW = shell.clientWidth;
+  if (!stageH || !totalW) return;
+  const chromeW = stage.parentElement.clientWidth - stage.clientWidth;
+  const idealStageW = stageH * (image.naturalWidth / image.naturalHeight);
+  let imageColW = Math.round(idealStageW + chromeW);
+  imageColW = Math.max(
+    REVIEW_LAYOUT_MIN_IMAGE_WIDTH,
+    Math.min(imageColW, totalW - REVIEW_LAYOUT_MIN_INPUT_WIDTH)
+  );
+  shell.style.gridTemplateColumns = `${imageColW}px minmax(${REVIEW_LAYOUT_MIN_INPUT_WIDTH}px, 1fr)`;
+  fitImageFrame();
+}
+
 function showDisplayedImage(item) {
   state.displayedImage = item;
   const image = el("animalImage");
@@ -143,6 +170,7 @@ function showDisplayedImage(item) {
     el("imageErrorText").textContent = item.error || item.imagePath;
     imageFrame.style.width = "";
     imageFrame.style.height = "";
+    fitReviewLayout();
   }
   document.querySelectorAll(".context-thumb").forEach((button) => {
     button.classList.toggle("active", button.dataset.displayId === item.displayId);
@@ -260,6 +288,7 @@ async function openFolder() {
     el("setupPanel").classList.add("hidden");
     el("reviewPanel").classList.remove("hidden");
     el("progressBlock").classList.remove("hidden");
+    fitReviewLayout();
   } catch (error) {
     showError(el("setupError"), error.message);
   } finally {
@@ -593,8 +622,8 @@ el("nextButton").addEventListener("click", () => stepImage(1));
 el("nextIncompleteButton").addEventListener("click", nextIncomplete);
 el("nextHoldButton").addEventListener("click", nextHold);
 el("returnCurrentButton").addEventListener("click", showCurrentImage);
-el("animalImage").addEventListener("load", fitImageFrame);
-window.addEventListener("resize", fitImageFrame);
+el("animalImage").addEventListener("load", fitReviewLayout);
+window.addEventListener("resize", fitReviewLayout);
 el("zoomButton").addEventListener("click", () => {
   if (!el("zoomImage").src) return;
   resetZoom();
@@ -712,6 +741,8 @@ function switchMode(mode) {
   el("gridMode").classList.toggle("hidden", isSingle);
   if (!isSingle) {
     loadAnimalSidebar();
+  } else {
+    fitReviewLayout();
   }
 }
 
