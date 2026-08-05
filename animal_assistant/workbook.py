@@ -78,13 +78,15 @@ def device_folder(value: Any) -> str:
 
 
 HUMAN_ANIMAL = "man（ヒト）"
+CAR_ANIMAL = "car（クルマ）"
+OPTIONAL_COUNT_ANIMALS = (HUMAN_ANIMAL, CAR_ANIMAL)
 
 
 def get_status(manual_animal: Any, manual_count: Any) -> str:
     text_animal = _text(manual_animal)
     if text_animal == "保留":
         return "hold"
-    if text_animal in ("いない", HUMAN_ANIMAL) or manual_count not in (None, ""):
+    if text_animal in ("いない", *OPTIONAL_COUNT_ANIMALS) or manual_count not in (None, ""):
         return "reviewed"
     return "pending"
 
@@ -118,8 +120,8 @@ def normalized_manual_values(predicted_animal: str, selected_animal: str, count:
     if selected_animal == "いない":
         return "いない", None
 
-    if selected_animal == HUMAN_ANIMAL and _text(count) == "":
-        return HUMAN_ANIMAL, None
+    if selected_animal in OPTIONAL_COUNT_ANIMALS and _text(count) == "":
+        return selected_animal, None
 
     if isinstance(count, bool):
         raise ValueError("数は0以上の整数で入力してください。")

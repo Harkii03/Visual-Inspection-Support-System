@@ -20,6 +20,8 @@ const state = {
 
 const el = (id) => document.getElementById(id);
 
+const OPTIONAL_COUNT_ANIMALS = ["man（ヒト）", "car（クルマ）"];
+
 function animalDisplayLabel(animalText) {
   const match = /（(.+)）/.exec(animalText || "");
   return match ? match[1] : (animalText || "");
@@ -211,8 +213,8 @@ function updateCountState() {
   if (absent) el("countInput").value = "";
   el("countHint").textContent = absent
     ? "「いない」のため、目視による数は空欄で保存されます。"
-    : animal === "man（ヒト）"
-    ? "人の場合、数は空欄のままでも保存できます。"
+    : OPTIONAL_COUNT_ANIMALS.includes(animal)
+    ? "この動物名の場合、数は空欄のままでも保存できます。"
     : "0以上の整数を入力してください。";
 }
 
@@ -620,8 +622,8 @@ function updateBulkCountState() {
   if (absent) el("bulkCountInput").value = "";
   el("bulkCountHint").textContent = absent
     ? "「いない」のため、目視による数は空欄で保存されます。"
-    : animal === "man（ヒト）"
-    ? "人の場合、数は空欄のままでも保存できます。"
+    : OPTIONAL_COUNT_ANIMALS.includes(animal)
+    ? "この動物名の場合、数は空欄のままでも保存できます。"
     : "空欄の場合はAI予測の数が保存されます。";
 }
 el("bulkAnimalSelect").addEventListener("change", updateBulkCountState);
