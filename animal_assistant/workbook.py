@@ -77,11 +77,14 @@ def device_folder(value: Any) -> str:
     raise WorkbookFormatError(f"デバイスを server/device に変換できません: {_text(value) or '（空欄）'}")
 
 
+HUMAN_ANIMAL = "man（ヒト）"
+
+
 def get_status(manual_animal: Any, manual_count: Any) -> str:
     text_animal = _text(manual_animal)
     if text_animal == "保留":
         return "hold"
-    if text_animal == "いない" or manual_count not in (None, ""):
+    if text_animal in ("いない", HUMAN_ANIMAL) or manual_count not in (None, ""):
         return "reviewed"
     return "pending"
 
@@ -114,6 +117,9 @@ def normalized_manual_values(predicted_animal: str, selected_animal: str, count:
         raise ValueError("動物名は候補から選択してください。")
     if selected_animal == "いない":
         return "いない", None
+
+    if selected_animal == HUMAN_ANIMAL and _text(count) == "":
+        return HUMAN_ANIMAL, None
 
     if isinstance(count, bool):
         raise ValueError("数は0以上の整数で入力してください。")
