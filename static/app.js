@@ -114,12 +114,26 @@ function renderRow(row, options = {}) {
   });
 }
 
+function fitImageFrame() {
+  const stage = el("imageStage");
+  const frame = el("imageFrame");
+  const image = el("animalImage");
+  if (!image.naturalWidth || !image.naturalHeight) return;
+  const stageW = stage.clientWidth;
+  const stageH = stage.clientHeight;
+  if (!stageW || !stageH) return;
+  const scale = Math.min(stageW / image.naturalWidth, stageH / image.naturalHeight);
+  frame.style.width = `${Math.round(image.naturalWidth * scale)}px`;
+  frame.style.height = `${Math.round(image.naturalHeight * scale)}px`;
+}
+
 function showDisplayedImage(item) {
   state.displayedImage = item;
   const image = el("animalImage");
+  const imageFrame = el("imageFrame");
   const imageError = el("imageError");
   const source = `${item.sourceUrl}?v=${Date.now()}`;
-  image.classList.toggle("hidden", !item.imageExists);
+  imageFrame.classList.toggle("hidden", !item.imageExists);
   imageError.classList.toggle("hidden", item.imageExists);
   el("referenceBadge").classList.toggle("hidden", item.isCurrent);
   el("returnCurrentButton").classList.toggle("hidden", item.isCurrent);
@@ -131,6 +145,8 @@ function showDisplayedImage(item) {
     image.removeAttribute("src");
     el("zoomImage").removeAttribute("src");
     el("imageErrorText").textContent = item.error || item.imagePath;
+    imageFrame.style.width = "";
+    imageFrame.style.height = "";
   }
   document.querySelectorAll(".context-thumb").forEach((button) => {
     button.classList.toggle("active", button.dataset.displayId === item.displayId);
@@ -637,6 +653,8 @@ el("nextButton").addEventListener("click", () => stepImage(1));
 el("nextIncompleteButton").addEventListener("click", nextIncomplete);
 el("nextHoldButton").addEventListener("click", nextHold);
 el("returnCurrentButton").addEventListener("click", showCurrentImage);
+el("animalImage").addEventListener("load", fitImageFrame);
+window.addEventListener("resize", fitImageFrame);
 el("zoomButton").addEventListener("click", () => {
   if (!el("zoomImage").src) return;
   resetZoom();
