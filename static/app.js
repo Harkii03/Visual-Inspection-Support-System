@@ -852,10 +852,13 @@ function renderImageGrid(rows) {
     if (isReviewed) {
       const badge = document.createElement("span");
       badge.className = "grid-card-badge reviewed-badge";
+      const countText = row.confirmedCount != null ? `（${row.confirmedCount}）` : "";
       badge.textContent = row.confirmedAnimal
-        ? `確認済み: ${animalDisplayLabel(row.confirmedAnimal)}`
+        ? `確認済み: ${animalDisplayLabel(row.confirmedAnimal)}${countText}`
         : "確認済み";
-      badge.title = row.confirmedAnimal || "確認済み";
+      badge.title = row.confirmedAnimal
+        ? `${row.confirmedAnimal}${countText}`
+        : "確認済み";
       card.append(badge);
     } else if (isHold) {
       const badge = document.createElement("span");

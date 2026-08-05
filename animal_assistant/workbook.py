@@ -429,6 +429,9 @@ class AnimalWorkbook:
             path_error = str(exc)
         status = get_status(manual_animal, manual_count)
         confirmed_animal = (manual_animal or predicted_animal) if status == "reviewed" else None
+        confirmed_count = None
+        if confirmed_animal is not None and confirmed_animal not in ("いない", *OPTIONAL_COUNT_ANIMALS):
+            confirmed_count = manual_count if manual_count not in (None, "") else predicted_count
         return {
             "index": index,
             "filename": _text(self.sheet.cell(excel_row, self.columns.filename).value),
@@ -436,6 +439,7 @@ class AnimalWorkbook:
             "predictedCount": predicted_count,
             "status": status,
             "confirmedAnimal": confirmed_animal,
+            "confirmedCount": confirmed_count,
             "imageExists": bool(image_path and image_path.is_file()),
             "pathError": path_error,
         }
