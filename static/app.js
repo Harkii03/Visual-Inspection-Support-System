@@ -220,13 +220,11 @@ function changeZoom(amount) {
 
 function updateCountState() {
   const animal = el("animalSelect").value;
-  const absent = animal === "いない";
-  el("countInput").disabled = absent;
-  if (absent) el("countInput").value = "";
-  el("countHint").textContent = absent
-    ? "「いない」のため、目視による数は空欄で保存されます。"
-    : OPTIONAL_COUNT_ANIMALS.includes(animal)
-    ? "この動物名の場合、数は空欄のままでも保存できます。"
+  const noCount = animal === "いない" || OPTIONAL_COUNT_ANIMALS.includes(animal);
+  el("countInput").disabled = noCount;
+  if (noCount) el("countInput").value = "";
+  el("countHint").textContent = noCount
+    ? "この動物名のため、目視による数は空欄で保存されます。"
     : "0以上の整数を入力してください。";
 }
 
@@ -579,13 +577,11 @@ el("countInput").addEventListener("input", () => { state.dirty = true; });
 
 function updateBulkCountState() {
   const animal = el("bulkAnimalSelect").value;
-  const absent = animal === "いない";
-  el("bulkCountInput").disabled = absent;
-  if (absent) el("bulkCountInput").value = "";
-  el("bulkCountHint").textContent = absent
-    ? "「いない」のため、目視による数は空欄で保存されます。"
-    : OPTIONAL_COUNT_ANIMALS.includes(animal)
-    ? "この動物名の場合、数は空欄のままでも保存できます。"
+  const noCount = animal === "いない" || OPTIONAL_COUNT_ANIMALS.includes(animal);
+  el("bulkCountInput").disabled = noCount;
+  if (noCount) el("bulkCountInput").value = "";
+  el("bulkCountHint").textContent = noCount
+    ? "この動物名のため、目視による数は空欄で保存されます。"
     : "空欄の場合はAI予測の数が保存されます。";
 }
 el("bulkAnimalSelect").addEventListener("change", updateBulkCountState);

@@ -117,8 +117,7 @@ def normalized_manual_values(predicted_animal: str, selected_animal: str, count:
         raise ValueError("動物名は候補から選択してください。")
     if selected_animal == "いない":
         return "いない", None
-
-    if selected_animal in OPTIONAL_COUNT_ANIMALS and _text(count) == "":
+    if selected_animal in OPTIONAL_COUNT_ANIMALS:
         return selected_animal, None
 
     if isinstance(count, bool):
@@ -362,7 +361,7 @@ class AnimalWorkbook:
 
         status = get_status(manual_animal, manual_count)
         ui_selected_animal = predicted_animal if status == "hold" else (manual_animal or predicted_animal)
-        displayed_count = "" if ui_selected_animal in ("いない", "保留") else (
+        displayed_count = "" if ui_selected_animal in ("いない", "保留", *OPTIONAL_COUNT_ANIMALS) else (
             manual_count if manual_count not in (None, "") else predicted_count
         )
         return {
